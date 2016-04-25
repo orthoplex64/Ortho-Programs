@@ -16,6 +16,7 @@ function wm.rectIntersection(x1, y1, w1, h1, x2, y2, w2, h2)
   return xmin2, ymin2, xmax2 - xmin2 + 1, ymax2 - ymin2 + 1
 end
 
+-- one wrapper is associated with each panel
 function wm.gpuWrapper(gpu, clipX, clipY, clipW, clipH)
   if not clipX then
     clipX, clipY = 0, 0
@@ -23,48 +24,50 @@ function wm.gpuWrapper(gpu, clipX, clipY, clipW, clipH)
   end
   local res = {}
   res.__index = gpu
-  local prevState = {palette = {}}
+  -- state stores the previous state when drawing,
+  --   and the current state when not drawing
+  local state = {palette = {}}
   function res.wrapperGetClip()
     return clipX, clipY, clipW, clipH
   end
   function res.wrapperSetClip(x, y, width, height)
     clipX, clipY, clipW, clipH = x, y, width, height
   end
-  function res.wrapperRestorePrevState()
-    if prevState.colorDepth then
-      gpu.setDepth(prevState.colorDepth)
+  function res.wrapperSwapState()
+    if state.colorDepth then
+      res.setDepth(state.colorDepth)
     end
-    if prevState.bgColor then
-      gpu.setBackground(prevState.bgColor, prevState.bgColorIsPaletteIndex)
+    if state.bgColor then
+      res.setBackground(state.bgColor, state.bgColorIsPaletteIndex)
     end
-    if prevState.fgColor then
-      gpu.setForeground(prevState.fgColor, prevState.fgColorIsPaletteIndex)
+    if state.fgColor then
+      res.setForeground(state.fgColor, state.fgColorIsPaletteIndex)
     end
-    for k, v in pairs(prevState.palette) do
-      gpu.setPaletteColor(k, v)
+    for k, v in pairs(state.palette) do
+      res.setPaletteColor(k, v)
     end
   end
   function res.setBackground(...)
-    if not prevState.bgColor then
-      prevState.bgColor, prevState.bgColorIsPaletteIndex = gpu.getBackground()
+    if not state.bgColor then
+      state.bgColor, state.bgColorIsPaletteIndex = gpu.getBackground()
     end
     return gpu.setBackground(...)
   end
   function res.setForeground(...)
-    if not prevState.fgColor then
-      prevState.fgColor, prevState.fgColorIsPaletteIndex = gpu.getForeground()
+    if not state.fgColor then
+      state.fgColor, state.fgColorIsPaletteIndex = gpu.getForeground()
     end
     return gpu.setForeground(...)
   end
   function res.setPaletteColor(index, value)
-    if not prevState.palette[index] then
-      prevState.palette[index] = gpu.getPaletteColor(index)
+    if not state.palette[index] then
+      state.palette[index] = gpu.getPaletteColor(index)
     end
     return gpu.setPaletteColor(index, value)
   end
   function res.setDepth(...)
-    if not prevState.colorDepth then
-      prevState.colorDepth = gpu.getDepth()
+    if not state.colorDepth then
+      state.colorDepth = gpu.getDepth()
     end
     return gpu.setDepth(...)
   end
@@ -86,7 +89,8 @@ function wm.gpuWrapper(gpu, clipX, clipY, clipW, clipH)
       then return end
     width = math.min(width, clipW - (x - 1), clipW - (tx - 1))
     height = math.min(height, clipH - (y - 1), clipH - (ty - 1))
-    return gpu.copy(x, y, width, height, tx, ty)
+    return gpu.copy(clipX + (x - 1), clipY + (y - 1)
+	  , width, height, clipX + (tx - 1), clipY + (ty - 1))
   end
   function res.fill(x, y, width, height, char)
     if x < 1 or x > clipW or y < 1 or y > clipH then return end
@@ -96,7 +100,8 @@ function wm.gpuWrapper(gpu, clipX, clipY, clipW, clipH)
     if height > clipH - (y - 1) then
       height = clipH - (y - 1)
     end
-    return gpu.fill(x, y, width, height, char)
+    return gpu.fill(clipX + (x - 1), clipY + (y - 1)
+	  , width, height, char)
   end
   return res
 end
@@ -105,21 +110,28 @@ end
 wm.Panel = {}
 local Panel = wm.Panel
 Panel.__index = Panel
-function Panel:new()
+function Panel:new(parentGpu, x, y, width, height)
   local res = {}
+  res.gpu = wm.gpuWrapper(parentGpu, x, y, width, height)
+  res.x, res.y = x, y
+  res.width, res.height = width, height
   res.children = {}
   setmetatable(res, self)
   return res
 end
 function Panel:paint()
-  asdf
+  for k, v in ipairs(children) do
+    v.gpu.wrapperSwapState()
+    v:paint()
+	v.gpu.wrapperSwapState()
+  end
 end
 
 -- Window class
-wm.Window = {}
+wm.Window = Panel:new()
 local Window = wm.Window
 Window.__index = Window
-function Window:new(title)
+function Window:new(parentGpu, x, y, width, height, title)
   local res = {}
   res.title = title or "Window " .. (#wm.windows + 1)
   res.mainPanel = Panel:new()
@@ -128,8 +140,8 @@ function Window:new(title)
   setmetatable(res, self)
   return res
 end
-function Window:paint(gpu)
-  gpu.set(self.x, self.y, self.title)
+function Window:paint()
+  gpu.gpu.set(0, 0, self.title)
   self.mainPanel:paint()
 end
 
