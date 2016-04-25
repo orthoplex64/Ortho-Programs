@@ -3,6 +3,7 @@
 local component = require("component")
 local wm = {}
 
+-- currently unused. I thought I would need it for gpuWrapper
 function wm.rectIntersection(x1, y1, w1, h1, x2, y2, w2, h2)
   local xmin1, ymin1, xmax1, ymax1, xmin2, ymin2, xmax2, ymax2
     = x1, y1, x1 + w1, y1 + h1, x2, y2, x2 + w2, y2 + h2
@@ -19,7 +20,7 @@ end
 -- one wrapper is associated with each panel
 function wm.gpuWrapper(gpu, clipX, clipY, clipW, clipH)
   if not clipX then
-    clipX, clipY = 0, 0
+    clipX, clipY = 1, 1
     clipW, clipH = gpu.getResolution()
   end
   local res = {}
@@ -132,17 +133,17 @@ wm.Window = Panel:new()
 local Window = wm.Window
 Window.__index = Window
 function Window:new(parentGpu, x, y, width, height, title)
-  local res = {}
+  local res = Panel:new(parentGpu, x, y, width, height)
   res.title = title or "Window " .. (#wm.windows + 1)
   res.mainPanel = Panel:new()
-  res.width = 1
-  res.height = 1
+  res.children = {res.mainPanel}
   setmetatable(res, self)
   return res
 end
 function Window:paint()
-  gpu.gpu.set(0, 0, self.title)
-  self.mainPanel:paint()
+  self.gpu.set(1, 1, self.title)
+  -- this will draw mainPanel since it is a child
+  Panel.paint(self)
 end
 
 return wm
