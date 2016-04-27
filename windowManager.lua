@@ -35,16 +35,18 @@ function wm.gpuWrapper(gpu, clipX, clipY, clipW, clipH)
     clipX, clipY, clipW, clipH = x, y, width, height
   end
   function res.wrapperSwapState()
-    if state.colorDepth then
-      res.setDepth(state.colorDepth)
+    local oldState = state
+    state = {palette = {}}
+    if oldState.colorDepth then
+      res.setDepth(oldState.colorDepth)
     end
-    if state.bgColor then
-      res.setBackground(state.bgColor, state.bgColorIsPaletteIndex)
+    if oldState.bgColor then
+      res.setBackground(oldState.bgColor, oldState.bgColorIsPaletteIndex)
     end
-    if state.fgColor then
-      res.setForeground(state.fgColor, state.fgColorIsPaletteIndex)
+    if oldState.fgColor then
+      res.setForeground(oldState.fgColor, oldState.fgColorIsPaletteIndex)
     end
-    for k, v in pairs(state.palette) do
+    for k, v in pairs(oldState.palette) do
       res.setPaletteColor(k, v)
     end
   end
