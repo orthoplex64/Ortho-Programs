@@ -55,7 +55,7 @@ for itiley = 0, math.ceil(height / tileSize) - 1 do
     for isubx = 0, tileSize - 1 do
       for isuby = 0, tileSize - 1 do
         local x1, y1, z1, x2, y2, z2 = get3DCoords(isubx, isuby)
-        printer.addShape(x1, y1, z1, x2, y2, z2, "chisel:paper/plain", getColor(itilex * tileSize + isubx, itiley * tileSize + isuby))
+        printer.addShape(x1, y1, z1, x2, y2, z2, "opencomputers:White", getColor(itilex * tileSize + isubx, itiley * tileSize + isuby))
       end
     end
     printer.commit()
