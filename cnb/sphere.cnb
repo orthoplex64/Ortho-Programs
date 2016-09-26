@@ -1,0 +1,16 @@
+local rad = 24
+blockBounds = {}
+for i = 1, 5, 2 do
+  blockBounds[i + 1] = math.ceil((rad - 8) / 16)
+  blockBounds[i] = -blockBounds[i + 1]
+end
+origin = {7.5, 7.5, 7.5}
+numMaterials = 1
+drawMode = 'EDGE_THICK'
+function isInShape(x, y, z)
+  return x^2 + y^2 + z^2 < rad^2
+end
+function getMaterial(x, y, z)
+  local res = math.floor(((math.atan2(z, x) + math.pi) / (math.pi * 2) + y / (rad * 2)) % 1 * numMaterials) + 1
+  return res <= numMaterials and res or numMaterials
+end
